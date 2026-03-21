@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import axios from 'axios';
 import { Telegraf } from 'telegraf';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 // @ts-ignore
@@ -7,154 +8,172 @@ import { AgentVault } from './AgentVault';
 // Validations
 const botToken = process.env.TELEGRAM_BOT_TOKEN;
 const geminiKey = process.env.GEMINI_API_KEY;
+const elevenKey = process.env.ELEVENLABS_API_KEY;
+
 if (!botToken) throw new Error("TELEGRAM_BOT_TOKEN missing!");
 if (!geminiKey) throw new Error("GEMINI_API_KEY missing!");
 
 // Initializations
 const bot = new Telegraf(botToken);
 const genAI = new GoogleGenerativeAI(geminiKey);
-const vault = new AgentVault('0x1A2B3c4D5e6F7g8H9I0J1K2L3M4N5O6P');
+const vault = new AgentVault('SplitBot_v1_Mainnet');
 
-// In-Memory state buffer before batching to IPFS
+const ESCROW_ADDRESS = "0xF768A55F53e366b20819657dE10Da4D7Fb977aB8";
+const SETTLE_LIT_ACTION_IPFS_ID = "Qmd5EedfkqnpN8WciScAjaFFPDeF6VVs7c1Y4nJAwHCSnn"; 
+
+// PERSISTENT STATE (Synced with AgentVault/IPFS)
 let tripTransactions: any[] = [];
-
-// A mock address book for the demo (since Telegram users don't have wallets natively attached yet)
-const walletBook: Record<string, string> = {
-    "alice": "0x2e06EB9984920BAde2A3A69C2f84E8F80bb2913A",
-    "bob": "0x81B2B6eDb6ACbd6203D002B4EbCdA1ED1e909aab",
-    "charlie": "0x91Fdf1D1f0458bCc84C1C4a754b2cfb6f91ED1e9"
-};
+let userRegistry: Record<string, string> = {}; // Maps Telegram ID -> Celo Wallet
 
 /**
- * Parses conversational text into structured JSON using Google Gemini
+ * Persists the entire agent brain to the Celo AgentVault
  */
-async function parseExpenseWithGemini(user: string, text: string) {
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-    const prompt = `
-    You are an AI Agent managing a group trip. 
-    The user ${user} just sent this message: "${text}"
-    Extract the financial expense. They might use different currencies, but assume USDC if not specified.
-    Return strictly a raw JSON object (No markdown formatting) with these exact keys:
-    {
-        "payer": "name of who paid",
-        "amount": numeric_amount,
-        "description": "what it was for"
-    }
-    If it's not a financial message, return {"error": "not an expense"}.
-    `;
+async function syncMemory() {
+    return await vault.saveState({
+        transactions: tripTransactions,
+        registry: userRegistry,
+        lastUpdated: new Date().toISOString()
+    });
+}
+
+/**
+ * Parses conversational text OR audio into structured JSON using Google Gemini
+ */
+async function parseExpenseWithGemini(user: string, inputData: { text?: string, audio?: Buffer }) {
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
     
+    let promptParts: any[] = [];
+    if (inputData.audio) {
+        promptParts.push({ inlineData: { data: inputData.audio.toString('base64'), mimeType: "audio/ogg" } });
+    }
+
+    promptParts.push(`
+    You are an AI Agent managing a group trip. The user ${user} sent a message.
+    ${inputData.text ? `Text: "${inputData.text}"` : "Audio memo attached."}
+    
+    Extract the financial expense. Return strictly raw JSON:
+    { "payer": "name", "amount": numeric_amount, "description": "reason" }
+    If not an expense, return {"error": "not an expense"}.
+    `);
+    
+    const result = await model.generateContent(promptParts);
+    const responseText = result.response.text().replace(/```json/g, '').replace(/```/g, '');
+    return JSON.parse(responseText);
+}
+
+async function calculateSettlementsWithGemini(transactions: any[]) {
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const prompt = `Transactions: ${JSON.stringify(transactions)}. Calculate optimal settlement debts. Return raw JSON array: [{"debtor": "name", "creditor": "name", "amount": numeric}]`;
     const result = await model.generateContent(prompt);
     const responseText = result.response.text().replace(/```json/g, '').replace(/```/g, '');
     return JSON.parse(responseText);
 }
 
-/**
- * Asks Gemini to do the complex math to net out all debts for the group
- */
-async function calculateSettlementsWithGemini(transactions: any[]) {
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-    const prompt = `
-    Analyze this list of group trip transactions:
-    ${JSON.stringify(transactions)}
-    
-    Calculate exactly who owes whom to settle all debts optimally (fewest transactions).
-    Assume expenses are split evenly among everyone who has been mentioned so far.
-    Return strictly a raw JSON array (No markdown formatting) structured like this:
-    [
-        { "debtor": "name", "creditor": "name", "amount": numeric }
-    ]
-    `;
-    
-    const result = await model.generateContent(prompt);
-    const responseText = result.response.text().replace(/```json/g, '').replace(/```/g, '');
-    return JSON.parse(responseText);
+async function generateSpeechWithElevenLabs(text: string): Promise<Buffer | null> {
+    if (!elevenKey) return null;
+    try {
+        const response = await axios.post(`https://api.elevenlabs.io/v1/text-to-speech/pNInz6obpgnuMvtmW4fz`, {
+            text, model_id: "eleven_turbo_v2_5"
+        }, {
+            headers: { 'xi-api-key': elevenKey, 'Content-Type': 'application/json' },
+            responseType: 'arraybuffer'
+        });
+        return Buffer.from(response.data);
+    } catch (e) { return null; }
 }
 
 // ----------------------------------------------------
-// HUMAN-TO-AGENT: Telegram Interface 
+// HANDLERS
 // ----------------------------------------------------
 
 bot.command('start', (ctx) => {
-    ctx.reply("👋 I am your Celo AI Agent powered by Gemini! Tell me what you spend, and I'll settle the debts using MiniPay deep links.");
+    ctx.reply("👋 Welcome to the Group Trip AI Agent!\n\n1️⃣ Use `/register <0xAddress>` to link your Celo wallet.\n2️⃣ Tell me expenses: 'Paid 50 for gas'.\n3️⃣ Type `/settle` for secure Lit Compute settlement.");
+});
+
+bot.command('register', async (ctx) => {
+    const address = ctx.message.text.split(' ')[1];
+    if (!address || !address.startsWith('0x') || address.length !== 42) {
+        return ctx.reply("❌ Usage: `/register <Celo_Wallet_Address>`");
+    }
+
+    const userId = ctx.from.id.toString();
+    const userName = ctx.from.first_name;
+    userRegistry[userName.toLowerCase()] = address; // Store by name for easy matching in LLM outputs
+
+    await ctx.reply(`✅ Wallet Linked! ${userName} is now associated with ${address.substring(0,6)}...`);
+    await syncMemory();
+});
+
+bot.command('settle', async (ctx) => {
+    await ctx.reply(`🧮 Agent is crunching numbers...`);
+    try {
+        const settlements = await calculateSettlementsWithGemini(tripTransactions);
+        if (settlements.length === 0) return ctx.reply("Everyone is settled up!");
+
+        for (const debt of settlements) {
+            const creditorName = debt.creditor.toLowerCase();
+            const address = userRegistry[creditorName];
+            
+            if (!address) {
+                await ctx.reply(`⚠️ Cannot settle for ${debt.creditor} (Wallet not registered). Ask them to use /register.`);
+                continue;
+            }
+
+            await ctx.reply(`🛡️ Requesting Secure Lit Action for ${debt.creditor}...`);
+            await vault.executeSettlementAction({
+                escrowAddress: ESCROW_ADDRESS, payee: address, amount: debt.amount.toString(),
+                description: `Split: ${debt.debtor} to ${debt.creditor}`, ipfsId: SETTLE_LIT_ACTION_IPFS_ID
+            });
+
+            const minipayLink = `https://minipay.xyz/pay?address=${address}&currency=USDC&amount=${debt.amount}`;
+            await ctx.reply(
+                `💰 **Settlement Ready!**\n${debt.debtor} owes ${debt.creditor} ${debt.amount} USDC.\n\n➡️ [Pay via MiniPay](${minipayLink})`, 
+                { parse_mode: 'Markdown' }
+            );
+        }
+    } catch (e: any) { ctx.reply(`❌ Math Error: ${e.message}`); }
+});
+
+bot.on('voice', async (ctx) => {
+    const fileLink = await ctx.telegram.getFileLink(ctx.message.voice.file_id);
+    const response = await axios.get(fileLink.toString(), { responseType: 'arraybuffer' });
+    const audioBuffer = Buffer.from(response.data);
+
+    await ctx.reply(`🎙️ AI Agent listening...`);
+    try {
+        const expense = await parseExpenseWithGemini(ctx.from.first_name, { audio: audioBuffer });
+        if (expense.error) return ctx.reply("Agent: No expense detected.");
+
+        tripTransactions.push(expense);
+        const cid = await syncMemory();
+        await ctx.reply(`✅ *Logged:* ${expense.payer} paid ${expense.amount}.\n🔒 Memory CID: \`${cid.substring(0,12)}\``, { parse_mode: 'Markdown' });
+
+        const audio = await generateSpeechWithElevenLabs(`Logged ${expense.amount} for ${expense.description}.`);
+        if (audio) await ctx.replyWithVoice({ source: audio });
+    } catch (e: any) { ctx.reply(`❌ Voice Error: ${e.message}`); }
 });
 
 bot.on('text', async (ctx) => {
-    const text = ctx.message.text.toLowerCase();
-    
-    // Ignore commands for the LLM
-    if (text.startsWith('/')) {
-        if (text === "/settle") {
-            await ctx.reply(`🧮 Agent is crunching the numbers using Gemini AI...`);
-            
-            try {
-                // 1. Ask Gemini to solve the debt matrix
-                const settlements = await calculateSettlementsWithGemini(tripTransactions);
-                
-                if (settlements.length === 0) {
-                    return ctx.reply("Everyone is completely settled up!");
-                }
-
-                // 2. Dynamically build Celo Deep Links for each debt!
-                for (const debt of settlements) {
-                    const creditorName = debt.creditor.toLowerCase();
-                    const debtorName = debt.debtor.toLowerCase();
-                    const amount = debt.amount;
-                    
-                    // Fallback to a zero-address if name isn't in our mock book
-                    const address = walletBook[creditorName] || "0x0000000000000000000000000000000000000000";
-                    
-                    const minipayLink = `https://minipay.xyz/pay?address=${address}&currency=USDC&amount=${amount}`;
-                    const valoraLink = `celo://wallet/pay?address=${address}&amount=${amount}&currencyCode=USDC`;
-
-                    await ctx.reply(
-                        `💰 **Settlement:**\n\n` +
-                        `${debt.debtor}, you owe ${debt.creditor} ${amount} USDC.\n` +
-                        `Tap below to execute a zero-gas Agent transfer:\n\n` +
-                        `➡️ [Pay via MiniPay](${minipayLink})\n` +
-                        `➡️ [Pay via Valora](${valoraLink})`, 
-                        { parse_mode: 'Markdown' }
-                    );
-                }
-            } catch (e: any) {
-                await ctx.reply(`❌ Agent Math Error: ${e.message}`);
-            }
-        }
-        return;
-    }
-
-    // Pass every other text to Gemini to sniff out expenses
-    await ctx.reply(`🎙️ AI Agent reading message...`);
-    
+    if (ctx.message.text.startsWith('/')) return;
+    await ctx.reply(`🎙️ AI Agent reading...`);
     try {
-        const expense = await parseExpenseWithGemini(ctx.message.from.first_name, text);
-        
-        if (expense.error) {
-            await ctx.reply("Agent: That didn't look like an expense. Ignoring.");
-            return;
-        }
+        const expense = await parseExpenseWithGemini(ctx.from.first_name, { text: ctx.message.text });
+        if (expense.error) return ctx.reply("Agent: No expense detected.");
 
-        // Add to our running buffer
         tripTransactions.push(expense);
-        
-        // Save the updated state strictly to the Celo AgentVault (Mocked x402 + IPFS)
-        const memoryCid = await vault.saveState({
-            eventName: "Live Telegram Splitting",
-            transactions: tripTransactions
-        });
-        
-        await ctx.reply(`✅ *Agent logged:* ${expense.payer} paid ${expense.amount} for ${expense.description}.\n🔒 Secured on AgentVault IPFS: \`${memoryCid.substring(0,12)}...\``, { parse_mode: 'Markdown' });
+        const cid = await syncMemory();
+        await ctx.reply(`✅ *Logged:* ${expense.payer} paid ${expense.amount}.\n🔒 Memory CID: \`${cid.substring(0,12)}\``, { parse_mode: 'Markdown' });
 
-    } catch (e: any) {
-        await ctx.reply(`❌ Agent Parsing Error: ${e.message}`);
-    }
+        const audio = await generateSpeechWithElevenLabs(`Recorded ${expense.amount} from ${expense.payer}.`);
+        if (audio) await ctx.replyWithVoice({ source: audio });
+    } catch (e: any) { ctx.reply(`❌ Error: ${e.message}`); }
 });
 
 async function boot() {
     await vault.setup();
     bot.launch();
-    console.log('\n🤖 [Telegram] End-to-End Gemini SplitBot is LIVE!');
+    console.log('\n🤖 [Telegram] Mainnet-Ready SplitBot is LIVE!');
 }
-
 boot().catch(console.error);
 process.once('SIGINT', () => bot.stop('SIGINT'));
 process.once('SIGTERM', () => bot.stop('SIGTERM'));

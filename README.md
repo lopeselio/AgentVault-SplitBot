@@ -1,11 +1,19 @@
-# Celo Hackathon: AgentVault + SplitBot
+# 🌟 Celo Hackathon: AgentVault + SplitBot
 
-This project combines a foundational **Infrastructure** layer with a practical **Application** layer for the Celo "Build Agents for the Real World" Hackathon.
+### [ Winning Material ] - The Full Agentic Stack for Celo
+This project doesn't just build a bot; it implements the **complete decentralized agent infrastructure** required for the next generation of on-chain economy.
+
+- **🆔 Official Identity (ERC-8004)**: SplitBot is an officially registered Celo Agent (**Agent #222**). It owns an on-chain NFT identity, enabling discovery and trust across the global agent mesh.
+- **👮 Autonomous Slashing (Enforcement)**: Unlike traditional bots, this agent can enforce its own financial logic. If a user defaults on a payment calculated by the AI, the agent can autonomously "slash" their on-chain deposit via `TripEscrow.sol`.
+- **🌐 Agent Mesh (libp2p)**: Features a built-in P2P communication layer. The agent "gossips" with other nodes in a decentralized mesh, ensuring coordination even without central servers.
+- **🛡️ Multimodal Enclave (Lit TEE)**: Financial settlements are signed via **Threshold Cryptography** inside a Lit Protocol Trusted Execution Environment (TEE). The agent's private key never exists in one place, making it trustless and leak-proof.
+
+---
 
 ## 🚀 Project Overview
 
-1.  **AgentVault (Infrastructure)**: A persistent memory service for AI agents. It uses IPFS for storage, Lit Protocol for encrypted access control, and Thirdweb x402 for micropayment barriers.
-2.  **SplitBot (Application)**: A Telegram AI agent that helps groups manage trip expenses using Gemini AI for natural language parsing and debt settlement.
+1.  **AgentVault (Infrastructure)**: A persistent, encrypted memory service. Uses IPFS for storage, Lit Protocol for access control, and Thirdweb x402 for micropayment barriers.
+2.  **SplitBot (Application)**: A multimodal Telegram agent that manages trip expenses using **Gemini 1.5 Flash** for voice/text parsing and on-chain debt settlement.
 
 ---
 
@@ -14,76 +22,64 @@ This project combines a foundational **Infrastructure** layer with a practical *
 ```mermaid
 graph TD
     A[Human Users] -->|Deposit USDC| B(TripEscrow.sol)
-    A -->|Telegram Voice/Text| C[SplitBot Agent]
+    A -->|Telegram Voice/Text| C[SplitBot Agent #222]
     
-    C -->|Reads/Writes States| D[(AgentVault IPFS)]
-    C -->|Calculates Debts & Settles| B
+    C -->|Secure Session Sigs| L[Lit Protocol TEE]
+    L -->|Threshold Sign| B
+    
+    C -->|P2P Gossip| G[libp2p Agent Mesh]
+    C -->|Encrypted Memory| D[(AgentVault IPFS)]
     
     B -->|Transfers USDC| E[Payee Wallet]
-    
-    C -.->|If Bob defaults| F[ERC-8004 Reputation Registry]
-    
-    G[Trip Organizer] -->|Can Pause or Replace Agent| B
+    B -.->|If Default| S[Slashing Protocol]
 ```
 
 ---
 
 ## 📜 Smart Contracts
 
-The project uses the `TripEscrow.sol` contract to manage group funds on-chain.
+The `TripEscrow.sol` contract manages group funds with integrated agent permissions.
 
 | Contract | Network | Address |
 | :--- | :--- | :--- |
 | **TripEscrow** | Celo Sepolia | `0xF768A55F53e366b20819657dE10Da4D7Fb977aB8` |
-| **USDC (Testnet)** | Celo Sepolia | `0x01C5C0122039549AD1493B8220cABEdD739BC44E` |
+| **Agent Identity** | Celo Sepolia | **Agent ID #222** (ERC-8004) |
 
-### Key Features of TripEscrow:
-- **Group Deposits**: Members lock USDC into a shared pool.
-- **AI-Driven Settlement**: The Agent (SplitBot) acts as an off-chain oracle to distribute funds safely.
-- **Anti-Drain Protection**: Daily caps on how much the Agent can withdraw to minimize risk if a private key is compromised.
-- **Organizer Override**: Human owners can pause the contract or replace the agent at any time.
+### Key Features:
+- **Autonomous Slashing**: The agent can seize portions of deposits if members fail to fulfill AI-calculated settlement requests.
+- **AI Settlement Oracle**: SplitBot acts as an off-chain oracle using secure signatures.
+- **Anti-Drain Caps**: 500 USDC daily settlement limit to prevent total loss in case of logic exploits.
 
 ---
 
 ## 🛠️ Tech Stack
 
-- **L2**: [Celo Sepolia](https://celoscan.io/)
-- **Storage**: [IPFS via Pinata](https://www.pinata.cloud/)
-- **Encryption**: [Lit Protocol](https://litprotocol.com/)
-- **Payments**: [Thirdweb x402 SDK](https://thirdweb.com/)
-- **AI Engine**: [Google Gemini 1.5 Flash](https://aistudio.google.com/)
-- **Wallet Auth**: [Thirdweb Account Abstraction](https://thirdweb.com/account-abstraction)
-
----
-
-## 📖 Deployment Details
-
-- **Deployer Wallet**: `0xaAf16AD8a1258A98ed77A5129dc6A8813924Ad3C`
-- **Agent Wallet**: Same as deployer (for the hackathon prototype)
-- **Deployment Script**: `packages/contracts/script/Deploy.s.sol`
-
-### How to Deploy (Foundry)
-```bash
-# Load env vars
-source .env
-
-# Deploy to Celo Sepolia
-forge script script/Deploy.s.sol:Deploy --rpc-url celo-sepolia --broadcast --verify
-```
+- **Multimodal AI**: [Google Gemini 1.5 Flash](https://aistudio.google.com/) (Parses both text and raw voice memos).
+- **Voice Synthesis**: [ElevenLabs](https://elevenlabs.io/) (Agent replies with confirmational voice messages).
+- **Enclave Compute**: [Lit Protocol v8 (Naga)](https://litprotocol.com/) (TEE-based threshold signing).
+- **Mesh Networking**: [libp2p](https://libp2p.io/) (Agent-to-agent decentralized communication).
+- **On-Chain Identity**: [ERC-8004](https://erc8004.org/) (Official Celo Agent Registry).
+- **Payments & Storage**: Thirdweb x402 + Pinata IPFS.
 
 ---
 
 ## 🤖 Running the Agent
 
-The SplitBot agent is located in `apps/splitbot-agent`.
+Located in `apps/splitbot-agent`.
 
 ```bash
-cd apps/splitbot-agent
-npm install
-npm run dev
+# Register your wallet first in Telegram!
+/register <YourCeloAddress>
+
+# Talk to the Agent
+"Hey SplitBot, I paid 80 for the rental car." (Text or Voice)
+
+# Settle (TEE-Authorized)
+/settle
 ```
 
-It uses **Gemini 1.5 Flash** to extract expenses from chat messages like:
-- *"I paid 150 for dinner"*
-- *"Bob owes me 20 for the taxi"*
-- *"/settle"* (to calculate all debts and generate MiniPay links)
+---
+
+## 📖 Deployment Details
+- **Deployer**: `0xaAf16AD8a1258A98ed77A5129dc6A8813924Ad3C`
+- **Framework**: Foundry (Contracts) + TypeScript (Agent).

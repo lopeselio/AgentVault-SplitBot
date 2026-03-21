@@ -8,5 +8,12 @@
   ],
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@lit-protocol/auth-helpers": "^8.0.0-alpha.0",
+    "@lit-protocol/constants": "^8.0.0-alpha.0",
+    "@lit-protocol/contracts-sdk": "^8.0.0-alpha.0",
+    "@lit-protocol/lit-auth-client": "^8.0.0-alpha.0",
+    "@lit-protocol/lit-node-client": "^8.0.0-alpha.0"
   }
 }

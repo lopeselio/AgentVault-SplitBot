@@ -16,9 +16,9 @@ coverage
 nyc_output
 
 # Production
-build
-dist
-lib
+build/
+dist/
+# (Removed 'lib' to allow Foundry library folder)
 
 # Env
 .env

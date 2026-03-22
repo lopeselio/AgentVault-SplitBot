@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Settle Trip Expense</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #fdfdfd; }
+  </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen p-6 text-gray-800">
+
+  <div class="bg-white p-8 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] max-w-sm w-full text-center border border-gray-100">
+    <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+      <svg class="text-green-500 w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+    </div>
+    
+    <h1 class="text-2xl font-bold mb-1">Setttle Up</h1>
+    <p class="text-gray-500 text-sm mb-6">Pay via MiniPay</p>
+
+    <div class="bg-gray-50 rounded-xl p-4 mb-6 text-left">
+      <p class="text-xs text-gray-400 uppercase tracking-wider mb-1">Send</p>
+      <div class="text-3xl font-extrabold text-gray-900 mb-2 truncate" id="amountDisplay">0.00 <span class="text-lg text-gray-500 font-medium">USDC</span></div>
+      
+      <p class="text-xs text-gray-400 uppercase tracking-wider mt-4 mb-1">To Address</p>
+      <div class="text-sm text-gray-700 bg-gray-200/50 p-2 rounded truncate font-mono" id="addressDisplay">Loading...</div>
+    </div>
+
+    <button id="payBtn" class="w-full bg-[#1ab775] hover:bg-[#149860] text-white font-semibold py-4 px-6 rounded-xl transition-all shadow-lg shadow-green-200 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2">
+      Confirm Payment
+    </button>
+    
+    <p id="statusMsg" class="mt-4 text-sm font-medium text-center h-4"></p>
+  </div>
+
+  <script>
+    const USDC_ADDRESS = "0x01C5C0122039549AD1493B8220cABEdD739BC44E"; // Celo Alfajores USDC
+    const urlParams = new URLSearchParams(window.location.search);
+    const targetAddress = urlParams.get('address');
+    const amount = urlParams.get('amount') || "0";
+
+    document.getElementById('amountDisplay').innerHTML = `${Number(amount).toFixed(2)} <span class="text-lg text-gray-500 font-medium">USDC</span>`;
+    document.getElementById('addressDisplay').innerText = targetAddress ? `${targetAddress.substring(0,6)}...${targetAddress.slice(-4)}` : "Invalid Link";
+
+    const payBtn = document.getElementById('payBtn');
+    const statusMsg = document.getElementById('statusMsg');
+
+    payBtn.addEventListener('click', async () => {
+      if (!window.ethereum) {
+        statusMsg.innerText = "MiniPay / Web3 Wallet not found!";
+        statusMsg.className = "mt-4 text-sm font-medium text-red-500 text-center";
+        return;
+      }
+
+      if (!targetAddress) {
+        alert("No target address provided in link.");
+        return;
+      }
+
+      payBtn.disabled = true;
+      payBtn.innerHTML = '<svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Confirming...';
+
+      try {
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        await provider.send("eth_requestAccounts", []);
+        const signer = await provider.getSigner();
+
+        const usdcAbi = ["function transfer(address to, uint amount) returns (bool)"];
+        const usdcContract = new ethers.Contract(USDC_ADDRESS, usdcAbi, signer);
+
+        const amountWei = ethers.parseUnits(amount, 6); // USDC is 6 decimals
+
+        statusMsg.innerText = "Please confirm the transaction...";
+        statusMsg.className = "mt-4 text-sm font-medium text-blue-500 text-center animate-pulse";
+
+        const tx = await usdcContract.transfer(targetAddress, amountWei);
+        
+        statusMsg.innerText = "Processing on Celo...";
+        
+        const receipt = await tx.wait();
+
+        // Trigger Webhook back to SplitBot
+        try {
+            await fetch('/api/payment-success', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    chatId: urlParams.get('chatId'), 
+                    debtor: urlParams.get('debtor'), 
+                    creditor: urlParams.get('creditor'), 
+                    amount: amount, 
+                    hash: receipt.hash 
+                })
+            });
+        } catch(e) {
+            console.error(e);
+        }
+
+        statusMsg.innerText = "✅ Payment Successful!";
+        statusMsg.className = "mt-4 text-sm font-bold text-green-600 text-center";
+        payBtn.innerHTML = "Settled!";
+      } catch (error) {
+        console.error(error);
+        statusMsg.innerText = "❌ Transaction Failed or Rejected.";
+        statusMsg.className = "mt-4 text-sm font-medium text-red-500 text-center";
+        payBtn.disabled = false;
+        payBtn.innerHTML = "Try Again";
+      }
+    });
+
+  </script>
+</body>
+</html>

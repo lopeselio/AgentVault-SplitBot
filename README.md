@@ -108,6 +108,23 @@ graph TD
 
 ---
 
+### ✈️ Real-World Scenario: The "Bali Trip" 🥥
+
+Imagine three friends—**Alice, Bob, and Charlie**—on a 3-day trip to Bali.
+
+1.  **Trustless Deposit**: Each friend deposits **100 USDC** into the `TripEscrow` at the start of the trip. The pool now contains **300 USDC**.
+2.  **Conversational Logging**:
+    *   Alice pays **$150** for the Airbnb and sends a voice note: *"Hey SplitBot, Airbnb was $150."*
+    *   The Agent calculates that each person's share is $50. Since Alice already paid $150, the group owes her $100.
+3.  **Autonomous Settlement**:
+    *   Alice triggers `/settle`.
+    *   The Agent, running inside a **Lit Enclave**, verifies the debts and calls `settleExpense(Alice, 100 USDC)`.
+    *   **Alice is instantly reimbursed** $100 from the escrow pool. Her net spend is now exactly her fair share ($50).
+4.  **The Penalty (Game Theory in Action)**:
+    *   If Bob refuses to confirm his registry or "ghosts" the group, the Agent can **slash** Bob’s initial $100 deposit to cover the group's missing liquidity, ensuring the trip stays funded and fair.
+
+---
+
 ---
 
 ## 🛠️ Tech Stack

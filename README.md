@@ -58,35 +58,35 @@ The `TripEscrow.sol` contract serves as the decentralized settlement layer for a
 
 ```mermaid
 graph TD
-    User((User))
-    Agent[SplitBot Agent]
+    User(("User"))
+    Agent["SplitBot Agent"]
     Contract{{"TripEscrow.sol<br/>(Celo Sepolia)"}}
     
     subgraph "Main Functions"
-        User -->|deposit() / USDC| D[USDC Escrow Pool]
-        Agent -->|settleExpense()| S[Reimburse Payee]
-        Agent -->|slashUser()| SL[Penalize Defaulter]
-        Agent -->|refundUser()| RF[Return Funds]
+        User -->|"deposit() / USDC"| D["USDC Escrow Pool"]
+        Agent -->|"settleExpense()"| S["Reimburse Payee"]
+        Agent -->|"slashUser()"| SL["Penalize Defaulter"]
+        Agent -->|"refundUser()"| RF["Return Funds"]
     end
 
     subgraph "Edge Cases & Security Guards"
         D -.-> E1{"Allowance == 0?"}
-        E1 -->|No| FAIL1[Revert: Transfer Failed]
+        E1 -->|"No"| FAIL1["Revert: Transfer Failed"]
         
         S -.-> E2{"TotalPool < Amount?"}
-        E2 -->|Yes| FAIL2[Revert: Insufficient Pool]
+        E2 -->|"Yes"| FAIL2["Revert: Insufficient Pool"]
         
         S -.-> E3{"Amount > $500?"}
-        E3 -->|Yes| FAIL3[Revert: Daily Cap Exceeded]
+        E3 -->|"Yes"| FAIL3["Revert: Daily Cap Exceeded"]
         
         SL -.-> E4{"UserDeposit < Amount?"}
-        E4 -->|Yes| FAIL4[Revert: Insufficient Deposit]
+        E4 -->|"Yes"| FAIL4["Revert: Insufficient Deposit"]
         
         RF -.-> E5{"UserDeposit < Amount?"}
-        E5 -->|Yes| FAIL5[Revert: Insufficient Deposit]
+        E5 -->|"Yes"| FAIL5["Revert: Insufficient Deposit"]
         
         Contract -.-> E6{"isPaused?"}
-        E6 -->|Yes| FAIL6[Revert: Pausable]
+        E6 -->|"Yes"| FAIL6["Revert: Pausable"]
     end
 
     style D fill:#f9f,stroke:#333

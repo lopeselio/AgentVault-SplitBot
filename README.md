@@ -40,10 +40,11 @@ graph TD
 
 The `TripEscrow.sol` contract manages group funds with integrated agent permissions.
 
-| Contract | Network | Address |
+| Contract | Network | Address / Identity |
 | :--- | :--- | :--- |
-| **TripEscrow** | Celo Sepolia | `0x79cB34E300D37f3B65852338Ac1f3a0C1ED6Ca29` |
-| **Agent Identity** | Celo Sepolia | **Agent ID #222** (ERC-8004) |
+| **TripEscrow** | 🟢 Celo Sepolia | [`0x79cB34E300D37f3B65852338Ac1f3a0C1ED6Ca29`](https://sepolia.celoscan.io/address/0x79cB34E300D37f3B65852338Ac1f3a0C1ED6Ca29) |
+| **TripEscrow** | 🔵 Celo Mainnet | *Ready for Deployment* |
+| **Agent Identity** | 🆔 [AgentScan](https://agentscan.info/agent/222) | **Official Agent ID #222** (ERC-8004 Registry) |
 
 ### Key Features:
 - **Autonomous Slashing**: The agent can seize portions of deposits if members fail to fulfill AI-calculated settlement requests.

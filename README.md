@@ -212,6 +212,13 @@ Located in `apps/splitbot-agent`.
 
 ---
 
+### IPFS Pinata persistent storage for AI agents 
+JSON Blobs pinned to Pinnata with proper CDN set up
+<img width="1233" height="689" alt="image" src="https://github.com/user-attachments/assets/2fef6cd1-1bc7-448e-9276-e751676a2cdb" />
+
+<img width="870" height="778" alt="image" src="https://github.com/user-attachments/assets/7d65a350-adbd-4e0e-b5c7-af74124be160" />
+
+
 ## 📖 Deployment Details
 - **Deployer**: `0xaAf16AD8a1258A98ed77A5129dc6A8813924Ad3C`
 - **Framework**: Foundry (Contracts) + TypeScript (Agent).

@@ -29,7 +29,7 @@ export class AgentVault {
     private usePayments: boolean;
     private twebClient: any;
     private agentAccount: any;
-    private vaultDepositAddress = "0xF768A55F53e366b20819657dE10Da4D7Fb977aB8"; // Actual TripEscrow
+    private vaultDepositAddress = "0x79cB34E300D37f3B65852338Ac1f3a0C1ED6Ca29"; // Updated TripEscrow (Slashing v2)
     private usdcTokenAddress = "0x01C5C0122039549AD1493B8220cABEdD739BC44E"; // Celo Sepolia USDC
 
     private litNodeClient: any;

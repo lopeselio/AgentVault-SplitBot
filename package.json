@@ -6,9 +6,15 @@
     "apps/*",
     "packages/*"
   ],
+  "overrides": {
+    "@storacha/client": {
+      "multiformats": "^13.4.2"
+    }
+  },
   "scripts": {
     "test": "cd packages/contracts && forge test",
-    "test:contracts": "cd packages/contracts && forge test"
+    "test:contracts": "cd packages/contracts && forge test",
+    "test:zama": "cd packages/zama-split && npm run compile && npm test"
   },
   "dependencies": {
     "@lit-protocol/auth-helpers": "^8.0.0-alpha.0",

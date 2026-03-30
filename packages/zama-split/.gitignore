@@ -1,0 +1,6 @@
+artifacts/
+cache/
+types/
+coverage/
+.env
+fhevmTemp/

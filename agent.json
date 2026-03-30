@@ -3,16 +3,16 @@
   "name": "SplitBot",
   "description": "Multimodal Telegram agent for trustless group trip expense splitting with TripEscrow on Celo, Lit-encrypted AgentVault memory, ERC-8004 registries, and libp2p agent gossip. Replace placeholder fields under operator/endpoints with your deployment values.",
   "version": "2.1.0",
-  "image": "ipfs://QmSplitBotGenAIIdentityDefinition001",
+  "image": "ipfs://QmTEzZdUzxineYstzbtjjv5fQiSmD1ZxbwD7oFusrSqCbJ",
   "operator": {
-    "wallet": "0x0000000000000000000000000000000000000000",
+    "wallet": "0xaAf16AD8a1258A98ed77A5129dc6A8813924Ad3C",
     "chainId": 11142220,
     "network": "celo-sepolia"
   },
   "endpoints": [
     {
       "type": "telegram",
-      "url": "https://t.me/YourSplitBot"
+      "url": "https://t.me/Pocket_SplitBot"
     },
     {
       "type": "http",
@@ -29,7 +29,8 @@
     "usdc": "0x01C5C0122039549AD1493B8220cABEdD739BC44E",
     "identityRegistry": "0x8004A818BFB912233c491871b3d84c89A494BD9e",
     "reputationRegistry": "0x8004B663056A597Dffe9eCcC1965A193B7388713",
-    "validationRegistry": ""
+    "validationRegistry": "",
+    "confidentialSplitLedgerEthereumSepolia": ""
   },
   "capabilities": [
     "trip-expense-parsing",
@@ -37,7 +38,12 @@
     "reputation-hooks",
     "validation-requests",
     "lit-encrypted-memory",
-    "p2p-gossip"
+    "p2p-gossip",
+    "zama-confidential-ledger"
   ],
-  "supportedTrust": ["reputation", "validation", "tee"]
+  "supportedTrust": [
+    "reputation",
+    "validation",
+    "tee"
+  ]
 }

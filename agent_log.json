@@ -8,6 +8,29 @@
       "action": "manifest_created",
       "detail": "agent.json and agent_log.json added for PL Genesis / ERC-8004 DevSpot compatibility",
       "chainTx": null
+    },
+    {
+      "phase": "plan",
+      "action": "ai_settlement_plan",
+      "detail": "[{\"debtor\":\"Franky\",\"creditor\":\"Elio | IntoTheVerse Games\",\"amount\":1.5}]",
+      "chainTx": null,
+      "ts": "2026-03-30T14:16:47.614Z"
+    },
+    {
+      "phase": "execute",
+      "action": "settleExpense_wallet",
+      "detail": "{\"debtor\":\"Franky\",\"creditor\":\"Elio | IntoTheVerse Games\",\"amount\":1.5}",
+      "chainTx": "0x8e68add035d025f47fe4ef02c7776ae232ba3643e6c43393a3331f00a3ba110e",
+      "explorerUrl": "https://sepolia.celoscan.io/tx/0x8e68add035d025f47fe4ef02c7776ae232ba3643e6c43393a3331f00a3ba110e",
+      "ts": "2026-03-30T14:16:54.954Z"
+    },
+    {
+      "phase": "execute",
+      "action": "reputation_giveFeedback",
+      "detail": "agentId=222",
+      "chainTx": "0xdf2b249709f1ad6fa7338fccbd312aca2f770a35dd6c8a1b004b2f8f8a4ac865",
+      "explorerUrl": "https://sepolia.celoscan.io/tx/0xdf2b249709f1ad6fa7338fccbd312aca2f770a35dd6c8a1b004b2f8f8a4ac865",
+      "ts": "2026-03-30T14:17:14.446Z"
     }
   ],
   "instructions": "Append one object per material onchain action: register, giveFeedback, validationRequest, validationResponse, settleExpense, etc. Include tx hash and explorer URL."

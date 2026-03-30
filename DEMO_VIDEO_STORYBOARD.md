@@ -6,5 +6,5 @@
 4. **ERC-8004 (30s):** `agent.json` / `agent_log.json`; optional `giveFeedback` tx (feedback wallet) and `validationRequest` (operator).
 5. **Lit (20s):** Encrypted state blob; decrypt path; mention PKP / Vincent for production.
 6. **Zama (15s):** Run `npm run demo` in `packages/zama-split`; explain fhEVM ledger vs public escrow.
-7. **P2P + Filecoin (20s):** `ENABLE_MESH=true` gossip message; optional NFT.Storage CID for archives.
+7. **P2P + Filecoin (20s):** `ENABLE_MESH=true` gossip message; optional Storacha CID for archives.
 8. **Close (10s):** Comms stake / spam resistance; link to repo and live bot.

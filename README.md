@@ -34,6 +34,52 @@ graph TD
     B -.->|If Default| S[Slashing Protocol]
 ```
 
+### Target architecture (multi-track)
+
+This is the **end-state wiring** for PL Genesis–style submissions: trustless Celo escrow, ERC-8004 registries, Lit (or PKP/Vincent) for signing, IPFS/Pinata plus Filecoin-backed archives, Zama fhEVM for confidential financial state, and libp2p for agent mesh coordination.
+
+```mermaid
+flowchart LR
+  subgraph users [Humans]
+    TG[Telegram]
+  end
+  subgraph agent [SplitBot]
+    Plan[PlanParse]
+    Verify[VerifyRegistryBalances]
+    Exec[ExecuteSettlement]
+  end
+  subgraph celo [Celo]
+    Esc[TripEscrow]
+    R8004[ERC8004_Registries]
+  end
+  subgraph lit [LitOrVincent]
+    Enc[EncryptDecrypt]
+    LA[LitActionOrPKP]
+  end
+  subgraph storage [Storage]
+    IPFS[IPFS_Pinata]
+    FC[Filecoin_Archive]
+  end
+  subgraph zama [Zama_fhEVM]
+    FHE[Confidential_State]
+  end
+  subgraph p2p [P2P]
+    L2[libp2p_Mesh]
+  end
+  TG --> Plan
+  Plan --> Verify
+  Verify --> R8004
+  Verify --> Esc
+  Plan --> Enc
+  Enc --> IPFS
+  Exec --> LA
+  LA --> Esc
+  agent --> L2
+  L2 --> IPFS
+  IPFS --> FC
+  Plan --> FHE
+```
+
 ---
 
 ## 📜 Smart Contracts
@@ -212,6 +258,26 @@ Located in `apps/splitbot-agent`.
 
 ---
 
+## Lit Chipotle (Base) vs Celo Sepolia (app chain)
+
+[Chipotle’s architecture](https://docs.dev.litprotocol.com/) shows **on-chain control-plane contracts on Base** (e.g. PKP registry, API key registry, groups). That is **where Lit registers PKPs, API keys, and action groups**—not where this app holds user funds.
+
+| Layer | Chain | Role |
+| ----- | ----- | ---- |
+| **Chipotle / Lit control plane** | **Base** (per Lit docs) | Register PKP, usage API key, groups, attach pinned Lit Action CIDs |
+| **SplitBot settlement** | **Celo Sepolia** (`11142220`) | `TripEscrow`, USDC, ERC-8004 |
+
+The Lit Action (`packages/agent-vault/src/lit-actions/settleTrip.js`) calls `Lit.Actions.signEthers` with **`chainId: 11142220`** so the threshold signature targets **Celo Sepolia**—consistent with `TripEscrow` on Celo. **You do not deploy Chipotle’s Base contracts yourself;** you use Lit’s hosted services and dashboard on Base while settling on Celo.
+
+**Checklist**
+
+1. In **Lit Dev / Chipotle**: create PKP, scoped **usage** API key (`LIT_CHIPOTLE_API_KEY`), group, and register the Lit Action CID (`LIT_SETTLEMENT_IPFS_CID`) as documented—this flow uses Lit’s **Base**-deployed registries.
+2. Ensure the PKP / policy allows signing for **Celo Sepolia** if your Lit dashboard has per-chain allowlists.
+3. **`LIT_NETWORK=naga-dev`** controls which **Lit validator network** the SDK connects to (TEE mesh)—separate from Base RPC or Celo RPC.
+4. If the SDK logs **`fetch failed`** to Lit validator URLs, that is **connectivity to Lit nodes** (VPN/firewall/status), not “Celo missing from Chipotle docs.”
+
+---
+
 ## PL Genesis / DevSpot: bounties and onchain matrix
 
 | Track | Fit | Proof in repo |
@@ -222,15 +288,15 @@ Located in `apps/splitbot-agent`.
 | Ethereum Foundation — ERC-8004 | Identity + reputation + validation registries | `erc8004.ts`, `scripts/register-8004.ts`, `agent.json`, `agent_log.json` |
 | Lit Protocol — NextGen AI | Lit v8 (Naga-family) encrypt/decrypt + Lit Actions | `AgentVault.ts`, `ENABLE_LIT`, `LIT_SETTLEMENT_IPFS_CID` |
 | Zama — Confidential finance | fhEVM roadmap + commitment demo | `packages/zama-split/` |
-| Filecoin — Fee-gated agent comms | Optional NFT.Storage (Filecoin-backed) archive + `CommsStake.sol` | `filecoinArchive.ts`, `packages/contracts/src/CommsStake.sol` |
+| Filecoin — Fee-gated agent comms | Optional Storacha (Filecoin-backed) archive + `CommsStake.sol` | `filecoinArchive.ts`, `packages/contracts/src/CommsStake.sol` |
 
 **Explorer (Celo Sepolia):** [TripEscrow](https://sepolia.celoscan.io/address/0x79cB34E300D37f3B65852338Ac1f3a0C1ED6Ca29) · [Identity 8004](https://sepolia.celoscan.io/address/0x8004A818BFB912233c491871b3d84c89A494BD9e) · [Reputation 8004](https://sepolia.celoscan.io/address/0x8004B663056A597Dffe9eCcC1965A193B7388713)
 
-**Env matrix (see `apps/splitbot-agent/.env.example`):** `SETTLEMENT_MODE` (`minipay` \| `escrow`), `ENABLE_LIT`, `ENABLE_PAYMENTS`, `ERC8004_AGENT_ID`, `FEEDBACK_WALLET_PRIVATE_KEY` (must differ from agent for `giveFeedback`), `VALIDATION_REGISTRY_ADDRESS`, `VALIDATOR_ADDRESS`, `ENABLE_MESH`, `NFT_STORAGE_API_KEY`.
+**Env matrix (see `apps/splitbot-agent/.env.example`):** `SETTLEMENT_MODE` (`minipay` \| `escrow`), `ENABLE_LIT`, `ENABLE_PAYMENTS`, `ERC8004_AGENT_ID`, `FEEDBACK_WALLET_PRIVATE_KEY` (must differ from agent for `giveFeedback`), `VALIDATION_REGISTRY_ADDRESS`, `VALIDATOR_ADDRESS`, `ENABLE_MESH`, `STORACHA_AGENT_KEY`, `STORACHA_PROOF` (optional Filecoin archive via [Storacha](https://docs.storacha.network/)).
 
 ---
 
 ## 📖 Deployment Details
 - **Deployer**: `0xaAf16AD8a1258A98ed77A5129dc6A8813924Ad3C`
 - **Framework**: Foundry (Contracts) + TypeScript (Agent).
-- **Active Node**: Running on Celo Sepolia and Datil-Dev (Lit).
+- **Active Node**: Celo Sepolia (contracts); Lit **naga-dev** validators + Chipotle control plane on **Base** per Lit docs (PKP/API key/group registration—not TripEscrow).

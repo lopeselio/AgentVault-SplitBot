@@ -1,0 +1,43 @@
+{
+  "type": "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
+  "name": "SplitBot",
+  "description": "Multimodal Telegram agent for trustless group trip expense splitting with TripEscrow on Celo, Lit-encrypted AgentVault memory, ERC-8004 registries, and libp2p agent gossip. Replace placeholder fields under operator/endpoints with your deployment values.",
+  "version": "2.1.0",
+  "image": "ipfs://QmSplitBotGenAIIdentityDefinition001",
+  "operator": {
+    "wallet": "0x0000000000000000000000000000000000000000",
+    "chainId": 11142220,
+    "network": "celo-sepolia"
+  },
+  "endpoints": [
+    {
+      "type": "telegram",
+      "url": "https://t.me/YourSplitBot"
+    },
+    {
+      "type": "http",
+      "url": "http://localhost:3000",
+      "description": "MiniPay settlement webhook"
+    },
+    {
+      "type": "libp2p",
+      "multiaddr": "/ip4/127.0.0.1/tcp/0"
+    }
+  ],
+  "contracts": {
+    "tripEscrow": "0x79cB34E300D37f3B65852338Ac1f3a0C1ED6Ca29",
+    "usdc": "0x01C5C0122039549AD1493B8220cABEdD739BC44E",
+    "identityRegistry": "0x8004A818BFB912233c491871b3d84c89A494BD9e",
+    "reputationRegistry": "0x8004B663056A597Dffe9eCcC1965A193B7388713",
+    "validationRegistry": ""
+  },
+  "capabilities": [
+    "trip-expense-parsing",
+    "escrow-settlement",
+    "reputation-hooks",
+    "validation-requests",
+    "lit-encrypted-memory",
+    "p2p-gossip"
+  ],
+  "supportedTrust": ["reputation", "validation", "tee"]
+}

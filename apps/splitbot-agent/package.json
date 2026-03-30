@@ -31,10 +31,15 @@
     "viem": "^2.47.5"
   },
   "dependencies": {
+    "@chainsafe/libp2p-gossipsub": "^14.1.2",
     "@google/generative-ai": "^0.24.1",
     "@libp2p/tcp": "^11.0.13",
+    "@lit-protocol/auth-helpers": "^8.0.0-alpha.0",
+    "@lit-protocol/constants": "^8.0.0-alpha.0",
+    "@lit-protocol/lit-node-client": "^8.0.0-alpha.0",
     "axios": "^1.13.6",
     "cors": "^2.8.6",
+    "ethers": "^5.8.0",
     "express": "^5.2.1"
   }
 }

@@ -1,0 +1,14 @@
+{
+  "name": "zama-split",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Zama fhEVM confidential ledger slice (see README)",
+  "scripts": {
+    "demo": "tsx src/demoCommit.ts"
+  },
+  "devDependencies": {
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}

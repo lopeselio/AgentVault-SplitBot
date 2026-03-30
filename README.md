@@ -212,6 +212,24 @@ Located in `apps/splitbot-agent`.
 
 ---
 
+## PL Genesis / DevSpot: bounties and onchain matrix
+
+| Track | Fit | Proof in repo |
+| ----- | --- | ------------- |
+| Protocol Labs — Crypto | Group split + programmable escrow | `TripEscrow.sol`, `/settle` with `SETTLEMENT_MODE=escrow` |
+| Protocol Labs — AI & Robotics | Autonomous plan → verify → execute | `apps/splitbot-agent/src/bot.ts`, `settlement.ts` |
+| Protocol Labs — Infrastructure | Encrypted vault, P2P gossip, portable agent data | `AgentVault.ts`, `agentMesh.ts` |
+| Ethereum Foundation — ERC-8004 | Identity + reputation + validation registries | `erc8004.ts`, `scripts/register-8004.ts`, `agent.json`, `agent_log.json` |
+| Lit Protocol — NextGen AI | Lit v8 (Naga-family) encrypt/decrypt + Lit Actions | `AgentVault.ts`, `ENABLE_LIT`, `LIT_SETTLEMENT_IPFS_CID` |
+| Zama — Confidential finance | fhEVM roadmap + commitment demo | `packages/zama-split/` |
+| Filecoin — Fee-gated agent comms | Optional NFT.Storage (Filecoin-backed) archive + `CommsStake.sol` | `filecoinArchive.ts`, `packages/contracts/src/CommsStake.sol` |
+
+**Explorer (Celo Sepolia):** [TripEscrow](https://sepolia.celoscan.io/address/0x79cB34E300D37f3B65852338Ac1f3a0C1ED6Ca29) · [Identity 8004](https://sepolia.celoscan.io/address/0x8004A818BFB912233c491871b3d84c89A494BD9e) · [Reputation 8004](https://sepolia.celoscan.io/address/0x8004B663056A597Dffe9eCcC1965A193B7388713)
+
+**Env matrix (see `apps/splitbot-agent/.env.example`):** `SETTLEMENT_MODE` (`minipay` \| `escrow`), `ENABLE_LIT`, `ENABLE_PAYMENTS`, `ERC8004_AGENT_ID`, `FEEDBACK_WALLET_PRIVATE_KEY` (must differ from agent for `giveFeedback`), `VALIDATION_REGISTRY_ADDRESS`, `VALIDATOR_ADDRESS`, `ENABLE_MESH`, `NFT_STORAGE_API_KEY`.
+
+---
+
 ## 📖 Deployment Details
 - **Deployer**: `0xaAf16AD8a1258A98ed77A5129dc6A8813924Ad3C`
 - **Framework**: Foundry (Contracts) + TypeScript (Agent).

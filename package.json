@@ -7,7 +7,8 @@
     "packages/*"
   ],
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "cd packages/contracts && forge test",
+    "test:contracts": "cd packages/contracts && forge test"
   },
   "dependencies": {
     "@lit-protocol/auth-helpers": "^8.0.0-alpha.0",

@@ -1,0 +1,14 @@
+{
+  "agent": "SplitBot",
+  "schema": "devspot-agent-log-v1",
+  "entries": [
+    {
+      "ts": "2026-03-29T00:00:00.000Z",
+      "phase": "bootstrap",
+      "action": "manifest_created",
+      "detail": "agent.json and agent_log.json added for PL Genesis / ERC-8004 DevSpot compatibility",
+      "chainTx": null
+    }
+  ],
+  "instructions": "Append one object per material onchain action: register, giveFeedback, validationRequest, validationResponse, settleExpense, etc. Include tx hash and explorer URL."
+}

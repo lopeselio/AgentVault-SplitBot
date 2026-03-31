@@ -391,11 +391,11 @@ In SplitBot, **Storacha** (the hot storage layer on top of Filecoin/IPFS) works 
 
 *AgentVault seamlessly falls back to Pinata for maximum redundancy.*
 
-### IPFS Pinata persistent storage for AI agents
-JSON Blobs pinned to Pinnata with proper CDN set up:
-<img width="1233" height="689" alt="image" src="https://github.com/user-attachments/assets/2fef6cd1-1bc7-448e-9276-e751676a2cdb" />
+### IPFS Storage backed by Filecoin using Storacha persistent storage for AI agents
+JSON Blobs pinned to storacha with proper CDN set up:
+<img width="937" height="707" alt="image" src="https://github.com/user-attachments/assets/26220d33-7b0d-497d-afa6-8dbee5fc5980" />
+<img width="1836" height="1522" alt="image" src="https://github.com/user-attachments/assets/c70d24b2-da61-44b8-b759-814c4418a89b" />
 
-<img width="870" height="778" alt="image" src="https://github.com/user-attachments/assets/7d65a350-adbd-4e0e-b5c7-af74124be160" />
 
 ---
 
@@ -408,7 +408,7 @@ JSON Blobs pinned to Pinnata with proper CDN set up:
 | Protocol Labs — Infrastructure | Encrypted vault, P2P gossip, portable agent data | `AgentVault.ts`, `agentMesh.ts` |
 | Ethereum Foundation — ERC-8004 | Identity + reputation + validation registries | `erc8004.ts`, `scripts/register-8004.ts`, `agent.json`, `agent_log.json` |
 | Lit Protocol — NextGen AI | Lit v8 (Naga-family) encrypt/decrypt + Lit Actions | `AgentVault.ts`, `ENABLE_LIT`, `LIT_SETTLEMENT_IPFS_CID` |
-| Zama — Confidential finance | fhEVM roadmap + commitment demo | `packages/zama-split/` |
+| Zama — Confidential finance | fhEVM roadmap + commitment demo | `packages/zama-split/` Contract deployed encryptig/decrypting at [ConfidentialSplitLedger.sol 0xe4eC57fA281a7d0132d7b77C33Add72A9a5E066E](https://sepolia.etherscan.io/address/0xe4eC57fA281a7d0132d7b77C33Add72A9a5E066E) |
 | Filecoin — Fee-gated agent comms | Optional Storacha (Filecoin-backed) archive + `CommsStake.sol` | `filecoinArchive.ts`, `packages/contracts/src/CommsStake.sol` |
 
 **Explorer (Celo Sepolia):** [TripEscrow](https://sepolia.celoscan.io/address/0x79cB34E300D37f3B65852338Ac1f3a0C1ED6Ca29) · [Identity 8004](https://sepolia.celoscan.io/address/0x8004A818BFB912233c491871b3d84c89A494BD9e) · [Reputation 8004](https://sepolia.celoscan.io/address/0x8004B663056A597Dffe9eCcC1965A193B7388713)

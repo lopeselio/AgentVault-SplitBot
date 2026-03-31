@@ -1,19 +1,38 @@
 # AgentVault + SplitBot
 
-### [ Winning Material ] - The Full Agentic Stack for Celo
-This project doesn't just build a bot; it implements the **complete decentralized agent infrastructure** required for the next generation of on-chain economy.
+### 🎙️ The Autonomous Bill-Splitting Agent on Steroids
+**SplitBot isn't just a ledger; it's a fully autonomous on-chain financial agent that processes raw voice notes and natural language to manage complex group expenses—enforcing debts trustlessly using smart contracts.**
+
+#### ❌ The Problem
+Sharing expenses during trips or group events is universally frustrating. Current web2 solutions like Splitwise force users into tedious manual data entry, while web3 multi-sig wallets lack conversational, human-centric UX. More importantly, when someone defaults on a group debt, traditional apps offer zero enforcement mechanics other than awkward text messages.
+
+#### ✅ The Solution
+SplitBot solves this by combining **Multimodal AI (Gemini 2.5 Flash)** with **Decentralized Cryptography**.
+Users simply drop a voice note in Telegram: *"Hey, I paid $50 for the rental car."* 
+The Agent does the rest:
+1. **Parses** the audio context instantly.
+2. **Encrypts** the financial state using Lit Protocol and Zama (fhEVM) to protect user spending privacy.
+3. **Persists** the memory trustlessly on Storacha (Filecoin/IPFS).
+4. **Enforces** the payout execution natively on Celo via smart contracts—even autonomously *slashing* the deposit of a user who refuses to pay.
+
+---
+
+### 🏆 The Complete Agentic Stack for Real-World Decentralized Finance
+This project implements the **complete decentralized agent infrastructure** required for the next generation of on-chain economy.
 
 - **🆔 Official Identity (ERC-8004)**: SplitBot is an officially registered Celo Agent (**Agent #222**). It owns an on-chain NFT identity, enabling discovery and trust across the global agent mesh.
 - **👮 Autonomous Slashing (Enforcement)**: Unlike traditional bots, this agent can enforce its own financial logic. If a user defaults on a payment calculated by the AI, the agent can autonomously "slash" their on-chain deposit via `TripEscrow.sol`.
 - **🌐 Agent Mesh (libp2p)**: Features a built-in P2P communication layer. The agent "gossips" with other nodes in a decentralized mesh, ensuring coordination even without central servers.
 - **🛡️ Multimodal Enclave (Lit TEE)**: Financial settlements are signed via **Threshold Cryptography** inside a Lit Protocol Trusted Execution Environment (TEE). The agent's private key never exists in one place, making it trustless and leak-proof.
+- **🔒 Confidential On-chain Finance (Zama)**: Integrates Zama's Fully Homomorphic Encryption (fhEVM) to maintain an encrypted split ledger allowing private expense tracking.
+- **💾 Decentralized Hot Storage (Storacha)**: Replaces traditional databases with Filecoin-backed Storacha for persisting encrypted agent memory securely on IPFS.
 
 ---
 
 ## 🚀 Project Overview
 
-1.  **AgentVault (Infrastructure)**: A persistent, encrypted memory service. Uses IPFS for storage, Lit Protocol for access control, and Thirdweb x402 for micropayment barriers.
-2.  **SplitBot (Application)**: A multimodal Telegram agent that manages trip expenses using **Gemini 1.5 Flash** for voice/text parsing and on-chain debt settlement.
+1.  **AgentVault (Infrastructure)**: A persistent, encrypted memory service. Uses **Storacha (Filecoin/IPFS)** for robust decentralized storage, **Lit Protocol** for threshold access control, and Thirdweb x402 for micropayment barriers.
+2.  **SplitBot (Application)**: A multimodal Telegram agent that manages trip expenses using **Gemini 2.5 Flash** for voice/text parsing, **Zama Protocol** for confidential encrypted accounting on Ethereum Sepolia, and **Celo** for blazing fast, transparent on-chain debt settlement.
 
 ---
 
@@ -90,6 +109,7 @@ The `TripEscrow.sol` contract manages group funds with integrated agent permissi
 | :--- | :--- | :--- |
 | **TripEscrow** | 🟢 Celo Sepolia | [`0x79cB34E300D37f3B65852338Ac1f3a0C1ED6Ca29`](https://sepolia.celoscan.io/address/0x79cB34E300D37f3B65852338Ac1f3a0C1ED6Ca29) |
 | **TripEscrow** | 🔵 Celo Mainnet | [`0xD43Bb3a001Ff360e28051d27363f8967E4a4C147`](https://celoscan.io/address/0xD43Bb3a001Ff360e28051d27363f8967E4a4C147) |
+| **ConfidentialSplitLedger** | 🟠 Ethereum Sepolia (fhEVM) | [`0xe4eC57fA281a7d0132d7b77C33Add72A9a5E066E`](https://sepolia.etherscan.io/address/0xe4eC57fA281a7d0132d7b77C33Add72A9a5E066E#code) |
 | **Agent Identity** | 🆔 [AgentScan](https://testnet.8004scan.io/agents/celo-sepolia/222) | **Official Agent ID #222** (ERC-8004 Mainnet) |
 
 ### 🆔 ERC-8004: Agent Trust & Reputation

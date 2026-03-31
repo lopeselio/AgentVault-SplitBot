@@ -256,8 +256,6 @@ Located in `apps/splitbot-agent`.
 /settle
 ```
 
----
-
 ## Lit Protocol usage
 
 [Chipotle’s architecture](https://docs.dev.litprotocol.com/) shows **on-chain control-plane contracts on Base** (e.g. PKP registry, API key registry, groups). That is **where Lit registers PKPs, API keys, and action groups**—not where this app holds user funds.
@@ -340,6 +338,28 @@ The following logs demonstrate that the agent is successfully relying entirely o
 🌐 [Storacha] State uploaded. CID: bafkreiao2n4h6olmebt22rfdtisskpm63qrlup372ni26yq3vppjzkajdq
 [agent_log] reputation_giveFeedback 0xe8a8105c14985e83da46f31ada7c522d6095501ff25587032b98438465771126
 ```
+
+---
+
+## 💾 Decentralized Storage (Storacha & Pinata)
+
+In SplitBot, **Storacha** (the hot storage layer on top of Filecoin/IPFS) works hand-in-hand with Lit Protocol to form the **AgentVault** persistent memory flow:
+
+1. **State Encryption**: When the agent modifies its memory (new debts, group updates), the state JSON is sent to the Lit Action (`Lit.Actions.Encrypt`) and encrypted.
+2. **IPFS Upload**: The encrypted ciphertext is then uploaded to the decentralized web using the **Storacha Network**, yielding a persistent Content Identifier (CID).
+3. **Decentralized Retrieval**: When the agent boots, it resolves its latest CID, fetches the blob from Storacha, and uses Lit Protocol to decrypt it back into working memory.
+
+**Why Storacha?**
+- **Verifiable Proof**: The data is reliably archived.
+- **Portability**: Agent #222's memory is not locked into a central database. By combining Lit decryption policies and IPFS CIDs, the agent can be booted up by any permissioned node in the true spirit of decentralized AI. 
+
+*AgentVault seamlessly falls back to Pinata for maximum redundancy.*
+
+### IPFS Pinata persistent storage for AI agents
+JSON Blobs pinned to Pinnata with proper CDN set up:
+<img width="1233" height="689" alt="image" src="https://github.com/user-attachments/assets/2fef6cd1-1bc7-448e-9276-e751676a2cdb" />
+
+<img width="870" height="778" alt="image" src="https://github.com/user-attachments/assets/7d65a350-adbd-4e0e-b5c7-af74124be160" />
 
 ---
 

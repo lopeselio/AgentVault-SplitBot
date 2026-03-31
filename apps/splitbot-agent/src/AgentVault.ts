@@ -8,8 +8,12 @@ import { createThirdwebClient, sendTransaction, getContract } from 'thirdweb';
 import { transfer } from 'thirdweb/extensions/erc20';
 import { privateKeyToAccount as twPkToAccount } from 'thirdweb/wallets';
 import { defineChain } from 'thirdweb';
-import { ESCROW_ADDRESS, getLitNetwork } from './config.js';
-import { runChipotleLitAction } from './chipotleClient.js';
+import { ESCROW_ADDRESS, getLitNetwork, getLitPkpWalletAddress } from './config.js';
+import { resolveLitActionCode, runLitAction } from './chipotleClient.js';
+import {
+    LIT_VAULT_LIT_ACTION_HASH,
+    resolveVaultCryptoLitActionCode,
+} from './vaultLitAction.js';
 import {
     getStorachaClient,
     AGENT_MEMORY_FILENAME,
@@ -30,6 +34,8 @@ export class AgentVault {
 
     private litNodeClient: any;
     private sessionSigs: any;
+    /** True only after `LitNodeClient.connect()` + session sigs succeeded. */
+    private litNodeReady = false;
 
     constructor(agentId: string) {
         this.agentId = agentId;
@@ -66,6 +72,50 @@ export class AgentVault {
         }
     }
 
+    /** After `setup()`, when `ENABLE_LIT=true`, logs which Lit settlement path is configured (core API vs `executeJs`). */
+    logLitIntegrationDiagnostics(): void {
+        if (!this.useRealLit) {
+            console.log(
+                '[Lit] ENABLE_LIT=false — TripEscrow settlements use the agent EOA in settlement.ts (wallet path).'
+            );
+            return;
+        }
+        const chipotle = !!process.env.LIT_CHIPOTLE_API_KEY?.trim();
+        const cid = process.env.LIT_SETTLEMENT_IPFS_CID?.trim();
+        console.log(
+            `[Lit] Settlement: ${chipotle ? 'Core API POST /lit_action (LIT_CHIPOTLE_API_KEY)' : 'lit-node-client executeJs + session sigs'}`,
+        );
+        const pkpAddr = getLitPkpWalletAddress();
+        if (chipotle && pkpAddr) {
+            console.log(
+                `[Lit] PKP ${pkpAddr} → js_params.pkpId; TripEscrow.splitBotAgent must match this address (else settleExpense reverts).`,
+            );
+            console.log(
+                '[Lit] Vault memory: Lit.Actions.Encrypt/Decrypt (Chipotle) via POST /lit_action (bundled vaultPkpCrypto.js or LIT_VAULT_CRYPTO_IPFS_CID).',
+            );
+        } else if (chipotle) {
+            console.warn('[Lit] Set LIT_CHIPOTLE_PKP_ID to PKP wallet 0x… for Lit settlement.');
+        }
+        if (!cid) {
+            console.warn(
+                '[Lit] LIT_SETTLEMENT_IPFS_CID unset — pin via Storacha: npx tsx scripts/pin-lit-action.ts (requires STORACHA_AGENT_KEY + STORACHA_PROOF)',
+            );
+        } else {
+            console.log(`[Lit] LIT_SETTLEMENT_IPFS_CID=${cid.slice(0, 16)}…`);
+        }
+        if (chipotle && !this.litNodeReady) {
+            console.warn(
+                '[Lit] Validator handshake unavailable — POST /lit_action settlement and Chipotle vault Encrypt/Decrypt still work; BLS encryptString/decryptToString need a connected node.',
+            );
+        }
+        if (this.litNodeReady) {
+            console.log('[Lit] Node client: connected — Lit encrypt/decrypt and executeJs available.');
+        }
+        console.log(
+            '[Lit] Docs: https://developer.litprotocol.com/management/api_direct#7-run-lit-action · Actions: https://developer.litprotocol.com/lit-actions/examples',
+        );
+    }
+
     async setup() {
         if (this.usePayments) {
             this.twebClient = createThirdwebClient({
@@ -76,6 +126,7 @@ export class AgentVault {
         }
         if (this.useRealLit) {
             const litNetwork = getLitNetwork();
+            const chipotleKey = !!process.env.LIT_CHIPOTLE_API_KEY?.trim();
             console.log(`🔒 [Lit] Connecting to ${litNetwork} (@lit-protocol v8 / Naga)...`);
             try {
                 this.litNodeClient = new LitJsSdk.LitNodeClientNodeJs({
@@ -84,11 +135,25 @@ export class AgentVault {
                 });
                 await this.litNodeClient.connect();
                 await this.refreshSessionSigs();
+                this.litNodeReady = true;
+                console.log('🔒 [Lit] Node client ready — session sigs + encrypt/decrypt paths active.');
             } catch (e: unknown) {
                 const msg = e instanceof Error ? e.message : String(e);
-                throw new Error(
-                    `[Lit] Required (ENABLE_LIT=true) but connection failed: ${msg}. Fix network/VPN/firewall, confirm Lit services, or set ENABLE_LIT=false only for local escrow-only runs.`,
-                );
+                if (chipotleKey) {
+                    this.litNodeClient = undefined;
+                    this.sessionSigs = undefined;
+                    this.litNodeReady = false;
+                    console.warn(
+                        `[Lit] Validator handshake failed (${msg}). ` +
+                            'Continuing: Core API settlement and Chipotle vault Encrypt/Decrypt do not require node TCP. ' +
+                            'BLS memory (encryptString) falls back to base64 until validators are reachable.',
+                    );
+                } else {
+                    throw new Error(
+                        `[Lit] ENABLE_LIT=true without LIT_CHIPOTLE_API_KEY needs Lit nodes for executeJs/session sigs. Connection failed: ${msg}. ` +
+                            'Add LIT_CHIPOTLE_API_KEY for POST /lit_action-only mode, or fix network/VPN/firewall, or set ENABLE_LIT=false for escrow-only.',
+                    );
+                }
             }
         }
     }
@@ -149,17 +214,24 @@ export class AgentVault {
             amount: params.amount,
             description: params.description,
         };
-        const pkpId = process.env.LIT_CHIPOTLE_PKP_ID;
+        const pkpId =
+            process.env.LIT_CHIPOTLE_PKP_ID?.trim() || process.env.LIT_PKP_ID?.trim();
         if (pkpId) jsParams.pkpId = pkpId;
 
         try {
             if (chipotleKey) {
-                const out = await runChipotleLitAction(chipotleKey, {
-                    code: params.ipfsId,
+                const code = await resolveLitActionCode(params.ipfsId);
+                const out = await runLitAction(chipotleKey, {
+                    code,
                     js_params: jsParams,
                 });
                 const r = out.response;
                 return typeof r === 'string' ? JSON.parse(r) : r;
+            }
+            if (!this.litNodeClient) {
+                throw new Error(
+                    '[Lit] executeJs requires a connected Lit node client. Handshake failed at startup; set LIT_CHIPOTLE_API_KEY for Core API settlement or restore network access to validators.',
+                );
             }
             const results = await this.litNodeClient.executeJs({
                 ipfsId: params.ipfsId,
@@ -205,31 +277,114 @@ export class AgentVault {
         ];
     }
 
+    private chipotleApiKey(): string | undefined {
+        return process.env.LIT_CHIPOTLE_API_KEY?.trim();
+    }
+
+    private pkpIdForLit(): string | undefined {
+        return process.env.LIT_CHIPOTLE_PKP_ID?.trim() || process.env.LIT_PKP_ID?.trim();
+    }
+
+    private parseLitActionResponse(response: unknown): Record<string, unknown> {
+        if (typeof response === 'string') {
+            try {
+                return JSON.parse(response) as Record<string, unknown>;
+            } catch {
+                return {};
+            }
+        }
+        if (response && typeof response === 'object') return response as Record<string, unknown>;
+        return {};
+    }
+
+    /** HTTPS-only: Chipotle `Lit.Actions.Encrypt` inside Lit Action (see packages/agent-vault/.../vaultPkpCrypto.js). */
+    private async encryptStateViaLitAction(state: Record<string, any>): Promise<{
+        encryptedData: string;
+        litHash: string;
+    }> {
+        const key = this.chipotleApiKey();
+        const pkpId = this.pkpIdForLit();
+        if (!key || !pkpId) throw new Error('LIT_CHIPOTLE_API_KEY and LIT_CHIPOTLE_PKP_ID required');
+        const code = await resolveVaultCryptoLitActionCode();
+        const out = await runLitAction(key, {
+            code,
+            js_params: {
+                pkpId,
+                mode: 'encrypt',
+                payload: JSON.stringify(state),
+            },
+        });
+        const r = this.parseLitActionResponse(out.response);
+        const ct = r.ciphertext;
+        if (typeof ct !== 'string' || !ct.length) {
+            throw new Error('Lit vault action: missing ciphertext in response');
+        }
+        return { encryptedData: ct, litHash: LIT_VAULT_LIT_ACTION_HASH };
+    }
+
+    private async decryptStateViaLitAction(ciphertext: string): Promise<string> {
+        const key = this.chipotleApiKey();
+        const pkpId = this.pkpIdForLit();
+        if (!key || !pkpId) throw new Error('LIT_CHIPOTLE_API_KEY and LIT_CHIPOTLE_PKP_ID required');
+        const code = await resolveVaultCryptoLitActionCode();
+        const out = await runLitAction(key, {
+            code,
+            js_params: {
+                pkpId,
+                mode: 'decrypt',
+                payload: ciphertext,
+            },
+        });
+        const r = this.parseLitActionResponse(out.response);
+        const pt = r.plaintext;
+        if (typeof pt !== 'string') {
+            throw new Error('Lit vault action: missing plaintext in response');
+        }
+        return pt;
+    }
+
     async saveState(state: Record<string, any>): Promise<string> {
         await this.executeMicropayment(0.05);
 
-        let encryptedPayload: string;
-        let dataToEncryptHash: string;
+        let encryptedPayload!: string;
+        let dataToEncryptHash!: string;
 
-        if (this.useRealLit && this.litNodeClient) {
-            console.log('🔒 [Lit] Encrypting state...');
-            try {
-                // @ts-expect-error encryptString
-                const { ciphertext, dataToEncryptHash: hash } = await LitJsSdk.encryptString(
-                    {
-                        accessControlConditions: this.getLitAccessConditions(),
-                        dataToEncrypt: JSON.stringify(state),
-                    },
-                    this.litNodeClient
-                );
-                encryptedPayload = ciphertext;
-                dataToEncryptHash = hash;
-            } catch (e: any) {
-                console.error(`❌ [Lit] Encryption failed: ${e.message}. Falling back to Base64.`);
-                encryptedPayload = Buffer.from(JSON.stringify(state)).toString('base64');
-                dataToEncryptHash = 'mockHash';
+        let done = false;
+        if (this.useRealLit) {
+            const ck = this.chipotleApiKey();
+            const pid = this.pkpIdForLit();
+            if (ck && pid) {
+                try {
+                    console.log('🔒 [Lit] Encrypting state (Lit Action: Lit.Actions.Encrypt, POST /lit_action)...');
+                    const enc = await this.encryptStateViaLitAction(state);
+                    encryptedPayload = enc.encryptedData;
+                    dataToEncryptHash = enc.litHash;
+                    done = true;
+                } catch (e: unknown) {
+                    const m = e instanceof Error ? e.message : String(e);
+                    console.warn(`⚠️ [Lit] Lit Action vault encrypt failed: ${m}. Trying node client or base64.`);
+                }
             }
-        } else {
+            if (!done && this.litNodeClient) {
+                console.log('🔒 [Lit] Encrypting state (node client encryptString + ACC)...');
+                try {
+                    // @ts-expect-error encryptString
+                    const { ciphertext, dataToEncryptHash: hash } = await LitJsSdk.encryptString(
+                        {
+                            accessControlConditions: this.getLitAccessConditions(),
+                            dataToEncrypt: JSON.stringify(state),
+                        },
+                        this.litNodeClient
+                    );
+                    encryptedPayload = ciphertext;
+                    dataToEncryptHash = hash;
+                    done = true;
+                } catch (e: any) {
+                    console.error(`❌ [Lit] Encryption failed: ${e.message}. Falling back to Base64.`);
+                }
+            }
+        }
+        if (!done) {
             encryptedPayload = Buffer.from(JSON.stringify(state)).toString('base64');
             dataToEncryptHash = 'mockHash';
         }
@@ -311,8 +466,28 @@ export class AgentVault {
     }
 
     private async decryptMemoryPayload(encryptedData: string, litHash: string): Promise<Record<string, any>> {
-        if (this.useRealLit && this.litNodeClient && litHash && litHash !== 'mockHash') {
-            console.log('🔓 [Lit] Decrypting state...');
+        if (litHash === LIT_VAULT_LIT_ACTION_HASH) {
+            const ck = this.chipotleApiKey();
+            const pid = this.pkpIdForLit();
+            if (ck && pid) {
+                console.log('🔓 [Lit] Decrypting state (Lit Action: Lit.Actions.Decrypt, POST /lit_action)...');
+                try {
+                    const plain = await this.decryptStateViaLitAction(encryptedData);
+                    return JSON.parse(plain);
+                } catch (decErr: unknown) {
+                    const m = decErr instanceof Error ? decErr.message : String(decErr);
+                    console.warn(`[Lit] Lit Action vault decrypt failed ${m}; trying base64`);
+                }
+            }
+        }
+        if (
+            this.useRealLit &&
+            this.litNodeClient &&
+            litHash &&
+            litHash !== 'mockHash' &&
+            litHash !== LIT_VAULT_LIT_ACTION_HASH
+        ) {
+            console.log('🔓 [Lit] Decrypting state (node client + session sigs)...');
             try {
                 // @ts-expect-error decrypt
                 const decryptedString = await LitJsSdk.decryptToString(

@@ -1,3 +1,4 @@
+import { getAddress, isAddress } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 
 export const CELO_SEPOLIA_CHAIN_ID = 11142220;
@@ -45,26 +46,55 @@ export const SETTLEMENT_MODE = (process.env.SETTLEMENT_MODE || 'escrow') as 'min
  */
 export const AGENT_VAULT_ID = process.env.AGENT_VAULT_ID?.trim() || 'splitbot-demo';
 
+/** Default when unset: 2.5 Flash — 2.0-flash is often 404 for new API keys (“no longer available to new users”). */
+export const GEMINI_DEFAULT_MODEL = 'gemini-2.5-flash';
+
 /**
- * Gemini model id (see Google AI Studio). Aliases like `gemini-flash-latest` often 503 under load — we normalize those.
- * Examples: gemini-2.0-flash, gemini-1.5-flash
+ * Gemini model id (see Google AI Studio / ListModels). Older 1.5 names are remapped — Google retires them periodically.
  */
 function normalizeGeminiModel(raw: string): string {
   const r = raw.trim();
   if (r === 'gemini-flash-latest' || r === 'gemini-pro-latest') {
     console.warn(
-      `[config] GEMINI_MODEL "${r}" is unstable; using gemini-1.5-flash. Set GEMINI_MODEL=gemini-1.5-flash or gemini-2.0-flash.`,
+      `[config] GEMINI_MODEL "${r}" is an alias; using ${GEMINI_DEFAULT_MODEL}. Set GEMINI_MODEL explicitly if needed.`,
     );
-    return 'gemini-1.5-flash';
+    return GEMINI_DEFAULT_MODEL;
+  }
+  if (r.startsWith('gemini-1.5-')) {
+    console.warn(
+      `[config] GEMINI_MODEL "${r}" is deprecated or unavailable on the current API; using ${GEMINI_DEFAULT_MODEL}. See https://ai.google.dev/gemini-api/docs/models/gemini`,
+    );
+    return GEMINI_DEFAULT_MODEL;
+  }
+  if (r === 'gemini-2.0-flash' || r.startsWith('gemini-2.0-flash-')) {
+    console.warn(
+      `[config] GEMINI_MODEL "${r}" is not offered to new API keys; using ${GEMINI_DEFAULT_MODEL}. Set GEMINI_MODEL explicitly if you still have access.`,
+    );
+    return GEMINI_DEFAULT_MODEL;
   }
   return r;
 }
 
 export const GEMINI_MODEL = normalizeGeminiModel(
-  process.env.GEMINI_MODEL?.trim() || 'gemini-1.5-flash',
+  process.env.GEMINI_MODEL?.trim() || GEMINI_DEFAULT_MODEL,
 );
 
 export const LIT_SETTLEMENT_IPFS_CID = process.env.LIT_SETTLEMENT_IPFS_CID || '';
+
+/** Optional: pinned CID for `vaultPkpCrypto.js`; if unset, bot uses bundled file for POST /lit_action. */
+export const LIT_VAULT_CRYPTO_IPFS_CID = process.env.LIT_VAULT_CRYPTO_IPFS_CID || '';
+
+/**
+ * PKP wallet address used in Lit Actions — the tx `from` when `settleTrip` runs.
+ * **TripEscrow.splitBotAgent must equal this address** for Lit settlement (not the operator EOA).
+ * `LIT_CHIPOTLE_PKP_ID` / `LIT_PKP_ID` are often the PKP’s 0x address; owner must `updateAgent(pkp)` on-chain if migrating from wallet-only mode.
+ */
+export function getLitPkpWalletAddress(): `0x${string}` | null {
+  const raw = process.env.LIT_CHIPOTLE_PKP_ID?.trim() || process.env.LIT_PKP_ID?.trim();
+  if (!raw) return null;
+  if (!isAddress(raw)) return null;
+  return getAddress(raw);
+}
 
 /** Lit v8 / Naga: only `naga-dev` and `custom` are valid. Legacy `datil-dev` maps to `naga-dev`. */
 export type LitNetworkName = 'naga-dev' | 'custom';

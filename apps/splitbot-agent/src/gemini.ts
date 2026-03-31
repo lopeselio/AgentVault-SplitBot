@@ -12,14 +12,20 @@ function isTransientGeminiError(e: unknown): boolean {
     );
 }
 
+/** Model id retired, wrong region, or not enabled for generateContent — try next model in chain. */
+function isModelNotFoundOrUnsupported(e: unknown): boolean {
+    const msg = e instanceof Error ? e.message : String(e);
+    return /404|Not Found|not found for API version|is not supported for generateContent|not supported/i.test(msg);
+}
+
 /** Primary model from config (for logging / rare direct use). */
 export function getGeminiModel(genAI: GoogleGenerativeAI) {
     return genAI.getGenerativeModel({ model: GEMINI_MODEL });
 }
 
-/** Ordered fallbacks if primary keeps returning 503 (same region may differ). */
+/** Ordered fallbacks after primary: 503/429, or 404 when an id is retired. Omit 2.0-flash (blocked for many new keys). */
 function modelChain(): string[] {
-    const fallbacks = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash-8b'];
+    const fallbacks = ['gemini-2.5-flash-lite', 'gemini-2.5-pro'];
     const seen = new Set<string>();
     const out: string[] = [];
     for (const m of [GEMINI_MODEL, ...fallbacks]) {
@@ -76,11 +82,14 @@ export async function generateContentWithRetry(
         } catch (e) {
             last = e;
             const lastModel = i === chain.length - 1;
-            if (!isTransientGeminiError(e) || lastModel) {
+            const tryNext =
+                !lastModel &&
+                (isTransientGeminiError(e) || isModelNotFoundOrUnsupported(e));
+            if (!tryNext) {
                 throw e;
             }
             console.warn(
-                `[Gemini] model ${name} still failing after retries — trying ${chain[i + 1]}… (${e instanceof Error ? e.message : e})`
+                `[Gemini] model ${name} unavailable — trying ${chain[i + 1]}… (${e instanceof Error ? e.message : e})`
             );
         }
     }

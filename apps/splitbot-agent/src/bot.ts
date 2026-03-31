@@ -117,7 +117,15 @@ const erc20Abi = parseAbi([
 ]);
 const escrowPoolAbi = parseAbi(['function totalPool() view returns (uint256)']);
 
-const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN!);
+/** Default 90s is too short for /settle (Gemini + Lit + chain + IPFS). Override with TELEGRAM_HANDLER_TIMEOUT_MS. */
+const TELEGRAM_HANDLER_TIMEOUT_MS = (() => {
+    const n = Number(process.env.TELEGRAM_HANDLER_TIMEOUT_MS);
+    return Number.isFinite(n) && n >= 90_000 ? n : 600_000;
+})();
+
+const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN!, {
+    handlerTimeout: TELEGRAM_HANDLER_TIMEOUT_MS,
+});
 
 bot.catch((err: unknown) => {
     const e = err as { response?: { error_code?: number; description?: string } };
@@ -249,9 +257,24 @@ bot.command('settle', async (ctx) => {
         });
 
         for (const debt of settlements) {
-            const creditorAddr = userRegistry[debt.creditor.toLowerCase()];
+            const key = debt.creditor.trim().toLowerCase();
+            let creditorAddr = userRegistry[key];
+            // AI may use a nickname; try first token if exact match missing (e.g. "Elio L." vs "elio")
+            if (!creditorAddr && key.includes(' ')) {
+                const first = key.split(/\s+/)[0]!;
+                creditorAddr = userRegistry[first];
+            }
             if (!creditorAddr) {
-                await ctx.reply(`⚠️ No wallet for creditor **${debt.creditor}** — register first.`);
+                const names = Object.keys(userRegistry);
+                const list = names.length ? names.map((n) => `• ${n}`).join('\n') : '_(none yet)_';
+                await ctx.reply(
+                    `⚠️ No wallet for creditor **${debt.creditor}**.\n\n` +
+                        `**Registered** (Telegram first name → wallet):\n${list}\n\n` +
+                        `The creditor must **/register** from their Telegram account:\n` +
+                        `\`/register 0x…\`\n\n` +
+                        `Names in the settlement must match those **first names** (or the AI may shorten "Name Surname" to the first name only).`,
+                    { parse_mode: 'Markdown' }
+                );
                 continue;
             }
 
@@ -457,9 +480,13 @@ bot.on(['text', 'voice'], async (ctx: any) => {
 
 async function boot() {
     validateProdEnv();
+    console.log(
+        `[Telegram] handler timeout ${TELEGRAM_HANDLER_TIMEOUT_MS / 1000}s (long commands like /settle; set TELEGRAM_HANDLER_TIMEOUT_MS to override)`,
+    );
     console.log(`[Gemini] model=${GEMINI_MODEL} (override with GEMINI_MODEL in .env)`);
     await vault.setup();
     await vault.logPersistenceDiagnostics();
+    vault.logLitIntegrationDiagnostics();
 
     const lastState = await vault.getLatestState();
     if (lastState && !('status' in lastState && (lastState as any).status === 'error')) {

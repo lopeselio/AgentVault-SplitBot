@@ -5,6 +5,7 @@ import {
   RPC_URL,
   USDC_DECIMALS,
   getAgentAccount,
+  getLitPkpWalletAddress,
   LIT_SETTLEMENT_IPFS_CID,
 } from './config.js';
 import type { AgentVault } from './AgentVault.js';
@@ -33,18 +34,23 @@ export async function verifyEscrowCanSettle(
   publicClient: ReturnType<typeof createPublicClient>,
   payee: `0x${string}`,
   amountHuman: number,
-  description: string
+  description: string,
+  opts?: { /** Lit: must match PKP `from`; wallet path: operator EOA */ authorizedSigner?: `0x${string}` }
 ): Promise<VerifyResult> {
-  const agent = getAgentAccount();
+  const expected =
+    opts?.authorizedSigner ?? getAgentAccount().address;
   const onchainAgent = await publicClient.readContract({
     address: ESCROW_ADDRESS,
     abi: escrowAbi,
     functionName: 'splitBotAgent',
   });
-  if (onchainAgent.toLowerCase() !== agent.address.toLowerCase()) {
+  if (onchainAgent.toLowerCase() !== expected.toLowerCase()) {
     return {
       ok: false,
-      reason: `Escrow splitBotAgent ${onchainAgent} != operator ${agent.address}`,
+      reason:
+        opts?.authorizedSigner != null
+          ? `Escrow splitBotAgent ${onchainAgent} != Lit PKP ${expected}. Call TripEscrow.updateAgent(${expected}) as owner, or set LIT_CHIPOTLE_PKP_ID to the wallet already registered as splitBotAgent.`
+          : `Escrow splitBotAgent ${onchainAgent} != operator ${expected}`,
     };
   }
 
@@ -70,12 +76,29 @@ export async function executeEscrowSettlement(
   debt: SettlementDebt,
   creditorAddress: `0x${string}`
 ): Promise<{ txHash: string; mode: 'wallet' | 'lit' }> {
-  const v = await verifyEscrowCanSettle(publicClient, creditorAddress, debt.amount, `settle:${debt.debtor}->${debt.creditor}`);
+  const useLit = process.env.ENABLE_LIT === 'true' && !!LIT_SETTLEMENT_IPFS_CID;
+  let verifyOpts: { authorizedSigner?: `0x${string}` } | undefined;
+  if (useLit) {
+    const pkp = getLitPkpWalletAddress();
+    if (!pkp) {
+      throw new Error(
+        'Lit settlement requires LIT_CHIPOTLE_PKP_ID or LIT_PKP_ID as the PKP wallet address (0x…). That address must match TripEscrow.splitBotAgent on-chain.',
+      );
+    }
+    verifyOpts = { authorizedSigner: pkp };
+  }
+
+  const v = await verifyEscrowCanSettle(
+    publicClient,
+    creditorAddress,
+    debt.amount,
+    `settle:${debt.debtor}->${debt.creditor}`,
+    verifyOpts
+  );
   if (!v.ok) throw new Error('reason' in v ? String(v.reason) : 'verify failed');
   const { amountWei, description: desc } = v;
 
   const agent = getAgentAccount();
-  const useLit = process.env.ENABLE_LIT === 'true' && LIT_SETTLEMENT_IPFS_CID;
 
   if (useLit) {
     const res = await vault.executeSettlementAction({

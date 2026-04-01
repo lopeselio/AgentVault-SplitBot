@@ -14,7 +14,7 @@
 </p>
 
 <p align="center">
-  <b>Click to Watch Demo Video</b><br>
+  <b>Click Image below to Watch Demo Video</b><br>
   <a href="https://youtu.be/idJJllVHheA?si=cO2Wi4qa25qJI0Ko">
     <img src="assets/video-demo.png" width="600" alt="SplitBot Demo Video" />
   </a>
@@ -25,6 +25,9 @@
 
 #### ❌ The Problem
 Sharing expenses during trips or group events is universally frustrating. Current web2 solutions like Splitwise force users into tedious manual data entry, while web3 multi-sig wallets lack conversational, human-centric UX. More importantly, when someone defaults on a group debt, traditional apps offer zero enforcement mechanics other than awkward text messages.
+
+<img width="1671" height="940" alt="image" src="https://github.com/user-attachments/assets/9d02609f-dbcc-4bdd-95be-74f4c819b1aa" />
+
 
 #### ✅ The Solution
 SplitBot solves this by combining **Multimodal AI (Gemini 2.5 Flash)** with **Decentralized Cryptography**.
